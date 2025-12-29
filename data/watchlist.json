@@ -1,0 +1,52 @@
+[
+  {
+    "symbol": "TSLA",
+    "type": "stock",
+    "indicators": {
+      "ma10": false,
+      "ma14": true,
+      "macd": false,
+      "kdj": false
+    }
+  },
+  {
+    "symbol": "EDIT",
+    "type": "stock",
+    "indicators": {
+      "ma10": false,
+      "ma14": true,
+      "macd": false,
+      "kdj": false
+    }
+  },
+  {
+    "symbol": "BTC-USD",
+    "type": "crypto",
+    "indicators": {
+      "ma10": false,
+      "ma14": true,
+      "macd": false,
+      "kdj": false
+    }
+  },
+  {
+    "symbol": "SOL-USD",
+    "type": "crypto",
+    "indicators": {
+      "ma10": false,
+      "ma14": true,
+      "macd": false,
+      "kdj": false
+    }
+  },
+  {
+    "symbol": "GLD",
+    "type": "stock",
+    "indicators": {
+      "ma10": false,
+      "ma14": true,
+      "macd": false,
+      "kdj": false
+    }
+  }
+]
