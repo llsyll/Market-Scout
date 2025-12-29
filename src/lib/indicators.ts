@@ -53,7 +53,9 @@ export const analyzeIndicators = (symbol: string, candles: Candle[]): IndicatorR
     const prevMACD = macdResult[macdResult.length - 2];
 
     let macdGoldCrossNodeZero = false;
-    if (currentMACD && prevMACD) {
+    if (currentMACD && prevMACD &&
+        currentMACD.MACD !== undefined && currentMACD.signal !== undefined &&
+        prevMACD.MACD !== undefined && prevMACD.signal !== undefined) {
         // Gold Cross: MACD crosses above Signal
         const isGoldCross = currentMACD.MACD > currentMACD.signal && prevMACD.MACD <= prevMACD.signal;
         // Below Zero: Both should be below zero (or just the crossover point)
