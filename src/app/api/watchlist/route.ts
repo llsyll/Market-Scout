@@ -3,7 +3,7 @@ import { getWatchlist, addToWatchlist, removeFromWatchlist, WatchlistItem } from
 import { getQuotes } from '@/lib/yahoo';
 
 export async function GET() {
-    const watchlist = getWatchlist();
+    const watchlist = await getWatchlist();
     const symbols = watchlist.map(item => item.symbol);
 
     if (symbols.length === 0) {
@@ -43,9 +43,10 @@ export async function POST(request: NextRequest) {
         // Ensure ma14 is present if it was a partial update or legacy data
         if (newItem.indicators.ma14 === undefined) newItem.indicators.ma14 = false;
 
-        addToWatchlist(newItem);
-        return NextResponse.json({ success: true, watchlist: getWatchlist() });
+        await addToWatchlist(newItem);
+        return NextResponse.json({ success: true, watchlist: await getWatchlist() });
     } catch (error) {
+        console.error(error);
         return NextResponse.json({ error: 'Failed to add item' }, { status: 500 });
     }
 }
@@ -58,8 +59,8 @@ export async function DELETE(request: NextRequest) {
         return NextResponse.json({ error: 'Symbol required' }, { status: 400 });
     }
 
-    removeFromWatchlist(symbol);
-    return NextResponse.json({ success: true, watchlist: getWatchlist() });
+    await removeFromWatchlist(symbol);
+    return NextResponse.json({ success: true, watchlist: await getWatchlist() });
 }
 
 export async function PUT(request: NextRequest) {
@@ -71,10 +72,10 @@ export async function PUT(request: NextRequest) {
             return NextResponse.json({ error: 'Symbol and indicators required' }, { status: 400 });
         }
 
-        const { updateWatchlistItem } = require('@/lib/watchlist');
-        updateWatchlistItem(symbol, indicators);
+        const { updateWatchlistItem, getWatchlist } = require('@/lib/watchlist');
+        await updateWatchlistItem(symbol, indicators);
 
-        return NextResponse.json({ success: true, watchlist: getWatchlist() });
+        return NextResponse.json({ success: true, watchlist: await getWatchlist() });
     } catch (error) {
         return NextResponse.json({ error: 'Failed to update item' }, { status: 500 });
     }

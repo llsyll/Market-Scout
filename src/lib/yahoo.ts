@@ -21,7 +21,7 @@ export interface QuoteData {
 
 export const fetchStockData = async (symbol: string, period = 60): Promise<Candle[]> => {
   // Suppress "notice" warnings that clutter logs
-  // yahooFinance.suppressNotices(['yahooSurvey', 'ripHistorical']);
+  yahooFinance.suppressNotices(['yahooSurvey', 'ripHistorical']);
 
   try {
     const end = new Date();

@@ -1,68 +1,52 @@
-import { NextResponse } from 'next/server';
+import { NextResponse, NextRequest } from 'next/server';
 import { getWatchlist } from '@/lib/watchlist';
 import { fetchStockData } from '@/lib/yahoo';
 import { analyzeIndicators } from '@/lib/indicators';
 import { sendTelegramMessage } from '@/lib/telegram';
 
-export async function POST() {
-    return await runCheckContext();
-}
-
-export async function GET() {
-    return await runCheckContext();
-}
-
-async function runCheckContext() {
-    const watchlist = getWatchlist();
+export async function POST(req: NextRequest) {
     const results = [];
     let messagesSent = 0;
 
-    for (const item of watchlist) {
-        try {
-            const candles = await fetchStockData(item.symbol);
-            if (!candles || candles.length < 30) {
-                results.push({ symbol: item.symbol, status: 'Insufficient data' });
-                continue;
-            }
 
-            const analysis = analyzeIndicators(item.symbol, candles);
+    const analysis = analyzeIndicators(item.symbol, candles);
 
-            // Check conditions
-            const matches: string[] = [];
+    // Check conditions
+    const matches: string[] = [];
 
-            if (item.indicators.ma10 && analysis.signals.ma10Break) {
-                matches.push('MA10 突破');
-            }
-            if (item.indicators.ma14 && analysis.signals.ma14Break) {
-                matches.push('MA14 突破');
-            }
-            if (item.indicators.macd && analysis.signals.macdGoldCrossNodeZero) {
-                matches.push('MACD 低位金叉');
-            }
-            if (item.indicators.kdj && analysis.signals.kdjGoldCrossLow) {
-                matches.push('KDJ 低位金叉');
-            }
+    if (item.indicators.ma10 && analysis.signals.ma10Break) {
+        matches.push('MA10 突破');
+    }
+    if (item.indicators.ma14 && analysis.signals.ma14Break) {
+        matches.push('MA14 突破');
+    }
+    if (item.indicators.macd && analysis.signals.macdGoldCrossNodeZero) {
+        matches.push('MACD 低位金叉');
+    }
+    if (item.indicators.kdj && analysis.signals.kdjGoldCrossLow) {
+        matches.push('KDJ 低位金叉');
+    }
 
-            let shouldNotify = false;
-            const selectedIndicators = [];
-            if (item.indicators.ma10) selectedIndicators.push('ma10');
-            if (item.indicators.ma14) selectedIndicators.push('ma14');
-            if (item.indicators.macd) selectedIndicators.push('macd');
-            if (item.indicators.kdj) selectedIndicators.push('kdj');
+    let shouldNotify = false;
+    const selectedIndicators = [];
+    if (item.indicators.ma10) selectedIndicators.push('ma10');
+    if (item.indicators.ma14) selectedIndicators.push('ma14');
+    if (item.indicators.macd) selectedIndicators.push('macd');
+    if (item.indicators.kdj) selectedIndicators.push('kdj');
 
-            if (selectedIndicators.length > 0) {
-                const ma10Ok = !item.indicators.ma10 || analysis.signals.ma10Break;
-                const ma14Ok = !item.indicators.ma14 || analysis.signals.ma14Break;
-                const macdOk = !item.indicators.macd || analysis.signals.macdGoldCrossNodeZero;
-                const kdjOk = !item.indicators.kdj || analysis.signals.kdjGoldCrossLow;
+    if (selectedIndicators.length > 0) {
+        const ma10Ok = !item.indicators.ma10 || analysis.signals.ma10Break;
+        const ma14Ok = !item.indicators.ma14 || analysis.signals.ma14Break;
+        const macdOk = !item.indicators.macd || analysis.signals.macdGoldCrossNodeZero;
+        const kdjOk = !item.indicators.kdj || analysis.signals.kdjGoldCrossLow;
 
-                if (ma10Ok && ma14Ok && macdOk && kdjOk) {
-                    shouldNotify = true;
-                }
-            }
+        if (ma10Ok && ma14Ok && macdOk && kdjOk) {
+            shouldNotify = true;
+        }
+    }
 
-            if (shouldNotify) {
-                const msg = `🚀 *机会预警: ${item.symbol}*
+    if (shouldNotify) {
+        const msg = `🚀 *机会预警: ${item.symbol}*
 价格: ${analysis.price.toFixed(2)}
 触发指标:
 ${matches.map(m => `- ${m}`).join('\n')}
@@ -73,17 +57,17 @@ MA14: ${analysis.details.ma14?.toFixed(2)}
 MACD: ${analysis.details.macd?.macd.toFixed(2)}
 KDJ: K=${analysis.details.kdj?.k.toFixed(1)} D=${analysis.details.kdj?.d.toFixed(1)}
 `;
-                await sendTelegramMessage(msg);
-                messagesSent++;
-            }
-
-            results.push({ symbol: item.symbol, match: shouldNotify, details: analysis.signals });
-
-        } catch (error) {
-            console.error(`Check failed for ${item.symbol}`, error);
-            results.push({ symbol: item.symbol, error: 'Check failed' });
-        }
+        await sendTelegramMessage(msg);
+        messagesSent++;
     }
 
-    return NextResponse.json({ results, messagesSent });
+    results.push({ symbol: item.symbol, match: shouldNotify, details: analysis.signals });
+
+} catch (error) {
+    console.error(`Check failed for ${item.symbol}`, error);
+    results.push({ symbol: item.symbol, error: 'Check failed' });
+}
+    }
+
+return NextResponse.json({ results, messagesSent });
 }
