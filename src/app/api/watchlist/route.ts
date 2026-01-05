@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getWatchlist, addToWatchlist, removeFromWatchlist, saveWatchlist, WatchlistItem } from '@/lib/watchlist';
+import { getWatchlist, addToWatchlist, removeFromWatchlist, WatchlistItem } from '@/lib/watchlist';
 import { fetchMixedQuote } from '@/lib/data-provider';
 
 export async function GET() {
     const watchlist = await getWatchlist();
+    const { saveWatchlist } = require('@/lib/watchlist');
 
     if (watchlist.length === 0) {
         return NextResponse.json(watchlist);
@@ -35,18 +36,14 @@ export async function GET() {
                     if (item.lastData) {
                         return { ...item, data: item.lastData, isStale: true };
                     }
-                    return { ...item, data: undefined, error: 'API returned no data' };
+                    return { ...item, data: undefined };
                 }
             } catch (e) {
                 console.error(`Fetch failed for ${item.symbol}`, e);
                 if (item.lastData) {
                     return { ...item, data: item.lastData, isStale: true };
                 }
-                return {
-                    ...item,
-                    data: undefined,
-                    error: e instanceof Error ? e.message : 'Fetch Failed'
-                };
+                return { ...item, data: undefined };
             }
         });
 

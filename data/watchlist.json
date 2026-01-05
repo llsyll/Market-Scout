@@ -7,6 +7,20 @@
       "ma14": true,
       "macd": false,
       "kdj": false
+    },
+    "error": "Missing FINNHUB_API_KEY",
+    "lastData": {
+      "price": 438.07,
+      "change": -11.65,
+      "changePercent": -2.5905,
+      "name": "TSLA"
+    },
+    "lastUpdated": "2026-01-05T06:42:13.932Z",
+    "data": {
+      "price": 438.07,
+      "change": -11.65,
+      "changePercent": -2.5905,
+      "name": "TSLA"
     }
   },
   {
@@ -17,6 +31,20 @@
       "ma14": true,
       "macd": false,
       "kdj": false
+    },
+    "error": "Missing FINNHUB_API_KEY",
+    "lastData": {
+      "price": 2.05,
+      "change": 0,
+      "changePercent": 0,
+      "name": "EDIT"
+    },
+    "lastUpdated": "2026-01-05T06:42:13.932Z",
+    "data": {
+      "price": 2.05,
+      "change": 0,
+      "changePercent": 0,
+      "name": "EDIT"
     }
   },
   {
@@ -27,6 +55,19 @@
       "ma14": true,
       "macd": false,
       "kdj": false
+    },
+    "lastData": {
+      "price": 92524.62,
+      "change": 1366.57,
+      "changePercent": 1.499,
+      "name": "BTC-USD"
+    },
+    "lastUpdated": "2026-01-05T06:42:13.932Z",
+    "data": {
+      "price": 92524.62,
+      "change": 1366.57,
+      "changePercent": 1.499,
+      "name": "BTC-USD"
     }
   },
   {
@@ -37,6 +78,19 @@
       "ma14": true,
       "macd": false,
       "kdj": false
+    },
+    "lastData": {
+      "price": 134.87,
+      "change": 1.42,
+      "changePercent": 1.064,
+      "name": "SOL-USD"
+    },
+    "lastUpdated": "2026-01-05T06:42:13.932Z",
+    "data": {
+      "price": 134.87,
+      "change": 1.42,
+      "changePercent": 1.064,
+      "name": "SOL-USD"
     }
   },
   {
@@ -47,6 +101,43 @@
       "ma14": true,
       "macd": false,
       "kdj": false
+    },
+    "error": "Missing FINNHUB_API_KEY",
+    "lastData": {
+      "price": 398.28,
+      "change": 1.97,
+      "changePercent": 0.4971,
+      "name": "GLD"
+    },
+    "lastUpdated": "2026-01-05T06:42:13.932Z",
+    "data": {
+      "price": 398.28,
+      "change": 1.97,
+      "changePercent": 0.4971,
+      "name": "GLD"
+    }
+  },
+  {
+    "symbol": "BTCUSDT",
+    "type": "crypto",
+    "indicators": {
+      "ma10": true,
+      "ma14": false,
+      "macd": true,
+      "kdj": true
+    },
+    "lastData": {
+      "price": 92839.69,
+      "change": 1286.56,
+      "changePercent": 1.405,
+      "name": "BTCUSDT"
+    },
+    "lastUpdated": "2026-01-05T06:42:13.932Z",
+    "data": {
+      "price": 92839.69,
+      "change": 1286.56,
+      "changePercent": 1.405,
+      "name": "BTCUSDT"
     }
   }
 ]

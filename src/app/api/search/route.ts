@@ -9,12 +9,15 @@ export async function GET(request: NextRequest) {
         return NextResponse.json({ results: [] });
     }
 
-    console.log(`Searching for: ${q}, Key present: ${!!process.env.FINNHUB_API_KEY}`);
     const results = await searchSymbol(q);
-    console.log(`Search results for ${q}: ${results.length}`);
 
-    // Results are already formatted by the revised searchSymbol function
-    const simplified = results;
+    // Simplify results for frontend
+    const simplified = results.map((item: any) => ({
+        symbol: item.symbol,
+        shortname: item.shortname || item.longname || item.symbol,
+        quoteType: item.quoteType,
+        exchange: item.exchange,
+    }));
 
     return NextResponse.json({ results: simplified });
 }

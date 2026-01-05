@@ -73,31 +73,10 @@ export const getQuotes = async (symbols: string[]): Promise<QuoteData[]> => {
   }
 }
 
-// Yahoo search is blocked on Vercel (429/403). Use Finnhub.
 export const searchSymbol = async (query: string) => {
-  const FINNHUB_API_KEY = process.env.FINNHUB_API_KEY;
-  if (!FINNHUB_API_KEY) return [];
-
   try {
-    const url = `https://finnhub.io/api/v1/search?q=${encodeURIComponent(query)}&token=${FINNHUB_API_KEY}`;
-    const res = await fetch(url);
-    if (!res.ok) return [];
-
-    const data = await res.json();
-    // Finnhub response: { count: 123, result: [ { description, displaySymbol, symbol, type }, ... ] }
-
-    return data.result.slice(0, 15).map((item: any) => {
-      // Finnhub symbols often look like "BINANCE:BTCUSDT". 
-      // We want to display "BTCUSDT" but maybe keep original valid?
-      // Actually, let's just use the displaySymbol if available or strip the prefix.
-      // displaySymbol is usually shorter.
-      return {
-        symbol: item.displaySymbol || item.symbol,
-        shortname: item.description,
-        quoteType: item.type ? item.type.toUpperCase() : 'UNKNOWN',
-        exchange: item.displaySymbol?.includes(':') ? item.displaySymbol.split(':')[0] : 'Unknown'
-      };
-    });
+    const result = await yahooFinance.search(query);
+    return result.quotes.filter((q: any) => q.isYahooFinance); // Filter relevant ones
   } catch (error) {
     console.error("Search error:", error);
     return [];

@@ -43,18 +43,9 @@ export default function Home() {
   }, [newSymbol]);
 
   const selectSymbol = (item: any) => {
-    // Strip exchange prefix if present (e.g., BINANCE:BTCUSDT -> BTCUSDT)
-    // accessible UI should probably show the prefix, but for storage we might want clean?
-    // Actually, keeping prefix helps identify source, but our backend expects specific formats.
-    // Our Binance US fetcher expects 'BTCUSD' or 'BTC-USD'. 
-    // Let's strip the prefix for the Input value.
-    const cleanSymbol = item.symbol.includes(':') ? item.symbol.split(':')[1] : item.symbol;
-
-    setNewSymbol(cleanSymbol);
-
+    setNewSymbol(item.symbol);
     // Auto-detect type
-    // Finnhub returns 'CRYPTO', Yahoo returned 'CRYPTOCURRENCY'
-    if (item.quoteType?.includes('CRYPTO') || item.exchange === 'CCC') {
+    if (item.quoteType === 'CRYPTOCURRENCY' || item.exchange === 'CCC') {
       setNewType('crypto');
     } else {
       setNewType('stock');
@@ -366,10 +357,8 @@ export default function Home() {
                 </div>
               ) : (
                 <div style={{ textAlign: 'right', color: 'var(--muted)', fontSize: '0.9rem' }}>
-                  <div>{(item as any).error ? '获取失败' : '暂无数据'}</div>
-                  <div style={{ fontSize: '0.75rem', color: '#ef4444' }}>
-                    {(item as any).error || '请检查代码'}
-                  </div>
+                  <div>暂无数据</div>
+                  <div style={{ fontSize: '0.75rem' }}>请检查代码</div>
                 </div>
               )}
             </div>
