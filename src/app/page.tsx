@@ -340,19 +340,27 @@ export default function Home() {
                     fontSize: '0.85rem',
                     display: 'flex',
                     gap: '0.5rem',
-                    justifyContent: 'flex-end'
+                    justifyContent: 'flex-end',
+                    alignItems: 'center'
                   }}>
                     <span>{(item as any).data.change > 0 ? '+' : ''}{(item as any).data.change?.toFixed(2)}</span>
                     <span>({(item as any).data.changePercent?.toFixed(2)}%)</span>
                   </div>
-                  <div style={{ fontSize: '0.75rem', color: 'var(--muted)', marginTop: '0.2rem' }}>
-                    {(item as any).data.name}
+                  <div style={{ fontSize: '0.75rem', color: 'var(--muted)', marginTop: '0.2rem', display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '4px' }}>
+                    {(item as any).isStale && (
+                      <span title="数据使用缓存，可能不是实时价格" style={{ color: '#fbbf24', cursor: 'help' }}>
+                        ⚠️ 缓存数据
+                      </span>
+                    )}
+                    <span>{(item as any).data.name}</span>
                   </div>
                 </div>
               ) : (
                 <div style={{ textAlign: 'right', color: 'var(--muted)', fontSize: '0.9rem' }}>
-                  <div>暂无数据</div>
-                  <div style={{ fontSize: '0.75rem' }}>请检查代码</div>
+                  <div>{(item as any).error ? '获取失败' : '暂无数据'}</div>
+                  <div style={{ fontSize: '0.75rem', color: '#ef4444' }}>
+                    {(item as any).error || '请检查代码'}
+                  </div>
                 </div>
               )}
             </div>

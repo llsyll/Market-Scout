@@ -46,6 +46,14 @@ export interface WatchlistItem {
         macd: boolean;
         kdj: boolean;
     };
+    // Cache for last known data
+    lastData?: {
+        price?: number;
+        change?: number;
+        changePercent?: number;
+        name?: string;
+    };
+    lastUpdated?: string; // ISO date string
 }
 
 const DEFAULT_WATCHLIST: WatchlistItem[] = [

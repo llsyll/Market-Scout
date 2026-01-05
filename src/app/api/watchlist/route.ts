@@ -1,32 +1,74 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getWatchlist, addToWatchlist, removeFromWatchlist, WatchlistItem } from '@/lib/watchlist';
-import { getQuotes } from '@/lib/yahoo';
+import { getWatchlist, addToWatchlist, removeFromWatchlist, saveWatchlist, WatchlistItem } from '@/lib/watchlist';
+import { fetchMixedQuote } from '@/lib/data-provider';
 
 export async function GET() {
     const watchlist = await getWatchlist();
-    const symbols = watchlist.map(item => item.symbol);
 
-    if (symbols.length === 0) {
+    if (watchlist.length === 0) {
         return NextResponse.json(watchlist);
     }
 
-    const quotes = await getQuotes(symbols);
+    try {
+        const now = new Date().toISOString();
+        const enrichedWatchlist = [];
+        let hasNewData = false;
 
-    // Merge quote data into watchlist items
-    const enrichedWatchlist = watchlist.map(item => {
-        const quote = quotes.find(q => q.symbol === item.symbol);
-        return {
+        // Fetch quotes one by one (Finnhub/Binance don't support unified batch effectively for free tier/crypto mix)
+        // Parallelize for performance
+        const promises = watchlist.map(async (item) => {
+            try {
+                const quote = await fetchMixedQuote(item.symbol, item.type);
+                if (quote) {
+                    const data = {
+                        price: quote.regularMarketPrice,
+                        change: quote.regularMarketChange,
+                        changePercent: quote.regularMarketChangePercent,
+                        name: quote.shortName
+                    };
+                    item.lastData = data;
+                    item.lastUpdated = now;
+                    hasNewData = true;
+                    return { ...item, data };
+                } else {
+                    // Fallback to cache
+                    if (item.lastData) {
+                        return { ...item, data: item.lastData, isStale: true };
+                    }
+                    return { ...item, data: undefined, error: 'API returned no data' };
+                }
+            } catch (e) {
+                console.error(`Fetch failed for ${item.symbol}`, e);
+                if (item.lastData) {
+                    return { ...item, data: item.lastData, isStale: true };
+                }
+                return {
+                    ...item,
+                    data: undefined,
+                    error: e instanceof Error ? e.message : 'Fetch Failed'
+                };
+            }
+        });
+
+        const results = await Promise.all(promises);
+
+        // Persist cache if we got new data
+        if (hasNewData) {
+            await saveWatchlist(results);
+        }
+
+        return NextResponse.json(results);
+
+    } catch (e) {
+        console.error("Live fetch failed, using cache:", e);
+        // Fallback to cache for ALL
+        const cachedWatchlist = watchlist.map(item => ({
             ...item,
-            data: quote ? {
-                price: quote.regularMarketPrice,
-                change: quote.regularMarketChange,
-                changePercent: quote.regularMarketChangePercent,
-                name: quote.shortName
-            } : undefined
-        };
-    });
-
-    return NextResponse.json(enrichedWatchlist);
+            data: item.lastData,
+            isStale: true
+        }));
+        return NextResponse.json(cachedWatchlist);
+    }
 }
 
 export async function POST(request: NextRequest) {

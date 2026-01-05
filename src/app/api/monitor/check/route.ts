@@ -1,6 +1,6 @@
 import { NextResponse, NextRequest } from 'next/server';
 import { getWatchlist } from '@/lib/watchlist';
-import { fetchStockData } from '@/lib/yahoo';
+import { fetchMixedCandles } from '@/lib/data-provider';
 import { analyzeIndicators } from '@/lib/indicators';
 import { sendTelegramMessage } from '@/lib/telegram';
 
@@ -15,7 +15,7 @@ export async function POST(req: NextRequest) {
 
     for (const item of watchlist) {
         try {
-            const candles = await fetchStockData(item.symbol);
+            const candles = await fetchMixedCandles(item.symbol, item.type);
             if (!candles || candles.length < 30) {
                 results.push({ symbol: item.symbol, status: 'Insufficient data' });
                 continue;
