@@ -103,4 +103,3 @@ export const searchSymbol = async (query: string) => {
     return [];
   }
 };
-```
