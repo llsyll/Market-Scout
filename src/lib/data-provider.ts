@@ -65,7 +65,12 @@ async function fetchBinanceQuote(symbol: string): Promise<QuoteData | null> {
         // 24hr ticker for change stats
         const url = `https://api.binance.com/api/v3/ticker/24hr?symbol=${binanceSymbol}`;
         const res = await fetch(url);
-        if (!res.ok) return null;
+        if (!res.ok) {
+            if (res.status === 451 || res.status === 403) {
+                throw new Error("Binance Blocked (Region)");
+            }
+            throw new Error(`Binance API Error: ${res.status}`);
+        }
         const data = await res.json();
 
         return {
@@ -77,7 +82,7 @@ async function fetchBinanceQuote(symbol: string): Promise<QuoteData | null> {
         };
     } catch (e) {
         console.error(`Binance quote failed for ${symbol}`, e);
-        return null;
+        throw e;
     }
 }
 
@@ -128,14 +133,23 @@ async function fetchFinnhubCandles(symbol: string): Promise<Candle[]> {
 }
 
 async function fetchFinnhubQuote(symbol: string): Promise<QuoteData | null> {
-    if (!FINNHUB_API_KEY) return null;
+    if (!FINNHUB_API_KEY) {
+        throw new Error("Missing FINNHUB_API_KEY");
+    }
     try {
         const url = `https://finnhub.io/api/v1/quote?symbol=${symbol}&token=${FINNHUB_API_KEY}`;
         const res = await fetch(url);
-        if (!res.ok) return null;
+        if (!res.ok) {
+            throw new Error(`Finnhub API Error: ${res.status}`);
+        }
         const data = await res.json();
 
         // Finnhub quote: { c: current, d: change, dp: percent, ... }
+        // Check if data is valid (Finnhub returns 0s for invalid symbols sometimes)
+        if (data.c === 0 && data.h === 0 && data.l === 0) {
+            // Maybe invalid symbol or no data
+        }
+
         return {
             symbol: symbol,
             regularMarketPrice: data.c,
@@ -145,7 +159,7 @@ async function fetchFinnhubQuote(symbol: string): Promise<QuoteData | null> {
         };
     } catch (e) {
         console.error(`Finnhub quote failed for ${symbol}`, e);
-        return null;
+        throw e; // Re-throw to be caught by route
     }
 }
 
