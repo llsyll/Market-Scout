@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { searchSymbol } from '@/lib/yahoo';
+import { unifiedSearch } from '@/lib/data-provider';
 
 export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
@@ -9,15 +9,7 @@ export async function GET(request: NextRequest) {
         return NextResponse.json({ results: [] });
     }
 
-    const results = await searchSymbol(q);
+    const results = await unifiedSearch(q);
 
-    // Simplify results for frontend
-    const simplified = results.map((item: any) => ({
-        symbol: item.symbol,
-        shortname: item.shortname || item.longname || item.symbol,
-        quoteType: item.quoteType,
-        exchange: item.exchange,
-    }));
-
-    return NextResponse.json({ results: simplified });
+    return NextResponse.json({ results });
 }
