@@ -86,14 +86,21 @@ export const searchSymbol = async (query: string) => {
     const data = await res.json();
     // Finnhub response: { count: 123, result: [ { description, displaySymbol, symbol, type }, ... ] }
 
-    return data.result.slice(0, 10).map((item: any) => ({
-      symbol: item.symbol,
-      shortname: item.description,
-      quoteType: item.type.toUpperCase(),
-      exchange: 'Unknown' // Finnhub search doesn't always give exchange in simple search
-    }));
+    return data.result.slice(0, 15).map((item: any) => {
+      // Finnhub symbols often look like "BINANCE:BTCUSDT". 
+      // We want to display "BTCUSDT" but maybe keep original valid?
+      // Actually, let's just use the displaySymbol if available or strip the prefix.
+      // displaySymbol is usually shorter.
+      return {
+        symbol: item.displaySymbol || item.symbol,
+        shortname: item.description,
+        quoteType: item.type ? item.type.toUpperCase() : 'UNKNOWN',
+        exchange: item.displaySymbol?.includes(':') ? item.displaySymbol.split(':')[0] : 'Unknown'
+      };
+    });
   } catch (error) {
     console.error("Search error:", error);
     return [];
   }
 };
+```
