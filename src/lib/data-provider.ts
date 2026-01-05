@@ -17,81 +17,74 @@ export interface QuoteData {
 
 // --- Binance (Crypto) ---
 
-// --- CryptoCompare (Crypto) ---
-// Docs: https://min-api.cryptocompare.com/documentation
+// --- Binance US (Crypto) ---
+// Vercel (US IP) friendly.
 
 async function fetchCryptoCandles(symbol: string): Promise<Candle[]> {
-    // Map format: BTC-USD -> BTC
-    let fsym = symbol.toUpperCase();
-    if (symbol.includes('-')) {
-        fsym = symbol.split('-')[0];
-    }
-    // Remove slash if exists
-    fsym = fsym.replace('/', '');
+    // Map format: BTC-USD -> BTCUSD
+    let binanceSymbol = symbol.replace('-', '').replace('/', '').toUpperCase();
+
+    // Binance US usually uses 'USD' as quote for fiat pairs (BTCUSD), or 'USDT' (BTCUSDT)
+    // Finnhub usually uses symbol 'BINANCE:BTCUSDT'.
+    // User usually types 'BTC-USD'.
+    // Try BTCUSD first (USD pair).
+
+    // Heuristic: If it contains 'USD', remove hyphen.
+    // Note: Binance US supports both BTCUSD and BTCUSDT.
 
     try {
-        // limit 60 days
-        const url = `https://min-api.cryptocompare.com/data/v2/histoday?fsym=${fsym}&tsym=USD&limit=60`;
+        const url = `https://api.binance.us/api/v3/klines?symbol=${binanceSymbol}&interval=1d&limit=60`;
         const res = await fetch(url);
+
         if (!res.ok) {
-            console.error(`CryptoCompare error for ${symbol}: ${res.status}`);
-            return [];
-        }
-        const json = await res.json();
-
-        if (json.Response === 'Error') {
-            console.error(`CryptoCompare API error for ${symbol}: ${json.Message}`);
+            // Try adding 'T' if it was USD -> USDT? Or just log failure.
+            console.error(`Binance US error for ${binanceSymbol}: ${res.status}`);
             return [];
         }
 
-        const data = json.Data.Data; // yes, Data.Data
-        // Data format: { time, high, low, open, volumefrom, volumeto, close, ... }
-        // time is unix timestamp in seconds
-
-        return data.map((d: any) => ({
-            date: new Date(d.time * 1000),
-            open: d.open,
-            high: d.high,
-            low: d.low,
-            close: d.close,
-            volume: d.volumeto, // Use volume in quote currency (USD) or base? usually volume is base. volumefrom is base.
+        const data = await res.json();
+        return data.map((d: any[]) => ({
+            date: new Date(d[0]),
+            open: parseFloat(d[1]),
+            high: parseFloat(d[2]),
+            low: parseFloat(d[3]),
+            close: parseFloat(d[4]),
+            volume: parseFloat(d[5]),
         }));
     } catch (e) {
-        console.error(`CryptoCompare fetch failed for ${symbol}`, e);
+        console.error(`Binance US fetch failed for ${symbol}`, e);
         return [];
     }
 }
 
 async function fetchCryptoQuote(symbol: string): Promise<QuoteData | null> {
-    let fsym = symbol.toUpperCase();
-    if (symbol.includes('-')) {
-        fsym = symbol.split('-')[0];
-    }
-    fsym = fsym.replace('/', '');
+    let binanceSymbol = symbol.replace('-', '').replace('/', '').toUpperCase();
 
     try {
-        // multi price endpoint serves as a quote
-        // or generate from latest candle? Candle might be delayed.
-        // Let's use pricemultifull for 24h change
-        const url = `https://min-api.cryptocompare.com/data/pricemultifull?fsyms=${fsym}&tsyms=USD`;
+        const url = `https://api.binance.us/api/v3/ticker/24hr?symbol=${binanceSymbol}`;
         const res = await fetch(url);
-        if (!res.ok) return null;
+        if (!res.ok) {
+            // Try fetching error message
+            try {
+                const err = await res.json();
+                console.error(`Binance US error for ${binanceSymbol}:`, err);
+            } catch { }
 
-        const json = await res.json();
-        if (json.Response === 'Error') return null;
+            // Allow Fallback to undefined/null to Trigger 'Cached Data' UI
+            return null;
+        }
 
-        const data = json.RAW?.[fsym]?.USD;
-        if (!data) return null;
+        const data = await res.json();
 
         return {
             symbol: symbol,
-            regularMarketPrice: data.PRICE,
-            regularMarketChange: data.CHANGE24HOUR,
-            regularMarketChangePercent: data.CHANGEPCT24HOUR,
+            regularMarketPrice: parseFloat(data.lastPrice),
+            regularMarketChange: parseFloat(data.priceChange),
+            regularMarketChangePercent: parseFloat(data.priceChangePercent),
             shortName: symbol
         };
     } catch (e) {
-        console.error(`CryptoCompare quote failed for ${symbol}`, e);
+        console.error(`Binance US quote failed for ${symbol}`, e);
         return null;
     }
 }

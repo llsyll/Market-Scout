@@ -11,13 +11,8 @@ export async function GET(request: NextRequest) {
 
     const results = await searchSymbol(q);
 
-    // Simplify results for frontend
-    const simplified = results.map((item: any) => ({
-        symbol: item.symbol,
-        shortname: item.shortname || item.longname || item.symbol,
-        quoteType: item.quoteType,
-        exchange: item.exchange,
-    }));
+    // Results are already formatted by the revised searchSymbol function
+    const simplified = results;
 
     return NextResponse.json({ results: simplified });
 }
