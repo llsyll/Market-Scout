@@ -32,8 +32,14 @@ async function fetchBinanceCandles(symbol: string): Promise<Candle[]> {
 
     try {
         // Interval 1d, limit 60
+        // Interval 1d, limit 60
         const url = `https://api.binance.com/api/v3/klines?symbol=${binanceSymbol}&interval=1d&limit=60`;
-        const res = await fetch(url);
+        const headers: HeadersInit = {};
+        if (process.env.BINANCE_API_KEY) {
+            headers['X-MBX-APIKEY'] = process.env.BINANCE_API_KEY;
+        }
+
+        const res = await fetch(url, { headers });
         if (!res.ok) {
             console.error(`Binance error for ${binanceSymbol}: ${res.status} ${res.statusText}`);
             return [];
@@ -64,10 +70,15 @@ async function fetchBinanceQuote(symbol: string): Promise<QuoteData | null> {
     try {
         // 24hr ticker for change stats
         const url = `https://api.binance.com/api/v3/ticker/24hr?symbol=${binanceSymbol}`;
-        const res = await fetch(url);
+        const headers: HeadersInit = {};
+        if (process.env.BINANCE_API_KEY) {
+            headers['X-MBX-APIKEY'] = process.env.BINANCE_API_KEY;
+        }
+
+        const res = await fetch(url, { headers });
         if (!res.ok) {
             if (res.status === 451 || res.status === 403) {
-                throw new Error("Binance Blocked (Region)");
+                throw new Error("Binance Blocked (Region) - Vercel US IP is banned by Binance.com");
             }
             throw new Error(`Binance API Error: ${res.status}`);
         }
