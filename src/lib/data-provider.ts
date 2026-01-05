@@ -17,83 +17,82 @@ export interface QuoteData {
 
 // --- Binance (Crypto) ---
 
-async function fetchBinanceCandles(symbol: string): Promise<Candle[]> {
-    // Map format: BTC-USD -> BTCUSDT
-    const pair = symbol.replace('-', '').replace('/', '').toUpperCase();
-    // Default to USDT if not specified? Usually user enters BTC-USD.
-    // If user enters just "BTC", we might need to guess, but assuming BTC-USD format from yahoo.
-    // Let's assume standard yahoo crypto format is SYMBOL-CURRENCY.
-    // If it's just "BTC", we might fail. But let's try to handle standard cases.
-    let binanceSymbol = pair;
+// --- CryptoCompare (Crypto) ---
+// Docs: https://min-api.cryptocompare.com/documentation
+
+async function fetchCryptoCandles(symbol: string): Promise<Candle[]> {
+    // Map format: BTC-USD -> BTC
+    let fsym = symbol.toUpperCase();
     if (symbol.includes('-')) {
-        const [base, quote] = symbol.split('-');
-        binanceSymbol = `${base}${quote}`;
+        fsym = symbol.split('-')[0];
     }
+    // Remove slash if exists
+    fsym = fsym.replace('/', '');
 
     try {
-        // Interval 1d, limit 60
-        // Interval 1d, limit 60
-        const url = `https://api.binance.com/api/v3/klines?symbol=${binanceSymbol}&interval=1d&limit=60`;
-        const headers: HeadersInit = {};
-        if (process.env.BINANCE_API_KEY) {
-            headers['X-MBX-APIKEY'] = process.env.BINANCE_API_KEY;
-        }
-
-        const res = await fetch(url, { headers });
+        // limit 60 days
+        const url = `https://min-api.cryptocompare.com/data/v2/histoday?fsym=${fsym}&tsym=USD&limit=60`;
+        const res = await fetch(url);
         if (!res.ok) {
-            console.error(`Binance error for ${binanceSymbol}: ${res.status} ${res.statusText}`);
+            console.error(`CryptoCompare error for ${symbol}: ${res.status}`);
             return [];
         }
-        const data = await res.json();
-        // Binance response: [ [ openTime, open, high, low, close, volume, ... ], ... ]
-        return data.map((d: any[]) => ({
-            date: new Date(d[0]),
-            open: parseFloat(d[1]),
-            high: parseFloat(d[2]),
-            low: parseFloat(d[3]),
-            close: parseFloat(d[4]),
-            volume: parseFloat(d[5]),
+        const json = await res.json();
+
+        if (json.Response === 'Error') {
+            console.error(`CryptoCompare API error for ${symbol}: ${json.Message}`);
+            return [];
+        }
+
+        const data = json.Data.Data; // yes, Data.Data
+        // Data format: { time, high, low, open, volumefrom, volumeto, close, ... }
+        // time is unix timestamp in seconds
+
+        return data.map((d: any) => ({
+            date: new Date(d.time * 1000),
+            open: d.open,
+            high: d.high,
+            low: d.low,
+            close: d.close,
+            volume: d.volumeto, // Use volume in quote currency (USD) or base? usually volume is base. volumefrom is base.
         }));
     } catch (e) {
-        console.error(`Binance fetch failed for ${symbol}`, e);
+        console.error(`CryptoCompare fetch failed for ${symbol}`, e);
         return [];
     }
 }
 
-async function fetchBinanceQuote(symbol: string): Promise<QuoteData | null> {
-    let binanceSymbol = symbol.replace('-', '').replace('/', '').toUpperCase();
+async function fetchCryptoQuote(symbol: string): Promise<QuoteData | null> {
+    let fsym = symbol.toUpperCase();
     if (symbol.includes('-')) {
-        const [base, quote] = symbol.split('-');
-        binanceSymbol = `${base}${quote}`;
+        fsym = symbol.split('-')[0];
     }
+    fsym = fsym.replace('/', '');
 
     try {
-        // 24hr ticker for change stats
-        const url = `https://api.binance.com/api/v3/ticker/24hr?symbol=${binanceSymbol}`;
-        const headers: HeadersInit = {};
-        if (process.env.BINANCE_API_KEY) {
-            headers['X-MBX-APIKEY'] = process.env.BINANCE_API_KEY;
-        }
+        // multi price endpoint serves as a quote
+        // or generate from latest candle? Candle might be delayed.
+        // Let's use pricemultifull for 24h change
+        const url = `https://min-api.cryptocompare.com/data/pricemultifull?fsyms=${fsym}&tsyms=USD`;
+        const res = await fetch(url);
+        if (!res.ok) return null;
 
-        const res = await fetch(url, { headers });
-        if (!res.ok) {
-            if (res.status === 451 || res.status === 403) {
-                throw new Error("Binance Blocked (Region) - Vercel US IP is banned by Binance.com");
-            }
-            throw new Error(`Binance API Error: ${res.status}`);
-        }
-        const data = await res.json();
+        const json = await res.json();
+        if (json.Response === 'Error') return null;
+
+        const data = json.RAW?.[fsym]?.USD;
+        if (!data) return null;
 
         return {
             symbol: symbol,
-            regularMarketPrice: parseFloat(data.lastPrice),
-            regularMarketChange: parseFloat(data.priceChange),
-            regularMarketChangePercent: parseFloat(data.priceChangePercent),
+            regularMarketPrice: data.PRICE,
+            regularMarketChange: data.CHANGE24HOUR,
+            regularMarketChangePercent: data.CHANGEPCT24HOUR,
             shortName: symbol
         };
     } catch (e) {
-        console.error(`Binance quote failed for ${symbol}`, e);
-        throw e;
+        console.error(`CryptoCompare quote failed for ${symbol}`, e);
+        return null;
     }
 }
 
@@ -178,7 +177,7 @@ async function fetchFinnhubQuote(symbol: string): Promise<QuoteData | null> {
 
 export const fetchMixedCandles = async (symbol: string, type: 'stock' | 'crypto'): Promise<Candle[]> => {
     if (type === 'crypto') {
-        return fetchBinanceCandles(symbol);
+        return fetchCryptoCandles(symbol);
     } else {
         return fetchFinnhubCandles(symbol);
     }
@@ -186,7 +185,7 @@ export const fetchMixedCandles = async (symbol: string, type: 'stock' | 'crypto'
 
 export const fetchMixedQuote = async (symbol: string, type: 'stock' | 'crypto'): Promise<QuoteData | null> => {
     if (type === 'crypto') {
-        return fetchBinanceQuote(symbol);
+        return fetchCryptoQuote(symbol);
     } else {
         return fetchFinnhubQuote(symbol);
     }
