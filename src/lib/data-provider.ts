@@ -3,24 +3,35 @@ import { fetchStockData, getQuotes, searchSymbol as searchYahoo, Candle, QuoteDa
 // --- Configuration ---
 const FINNHUB_API_KEY = process.env.FINNHUB_API_KEY;
 
+// Common Headers to mimic a browser and avoid basic bot detection
+const FETCH_HEADERS = {
+    'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+    'Accept': 'application/json',
+    'Accept-Language': 'en-US,en;q=0.9',
+};
+
 // --- CoinGecko (Fallback for Crypto) ---
 async function fetchCoinGeckoQuote(symbol: string): Promise<QuoteData | null> {
     // Map BTC-USD to bitcoin, SOL-USD to solana
-    // Simple mapping for common coins, fallback to symbol name
     const idMap: Record<string, string> = {
-        'BTC': 'bitcoin', 'ETH': 'ethereum', 'SOL': 'solana', 'DOGE': 'dogecoin', 'BONK': 'bonk'
+        'BTC': 'bitcoin', 'ETH': 'ethereum', 'SOL': 'solana', 'DOGE': 'dogecoin', 'BONK': 'bonk',
+        'ADA': 'cardano', 'XRP': 'ripple', 'DOT': 'polkadot', 'AVAX': 'avalanche-2',
+        'LINK': 'chainlink', 'MATIC': 'matic-network', 'SHIB': 'shiba-inu'
     };
 
     // Parse base symbol
     let base = symbol.toUpperCase();
     if (symbol.includes('-')) base = symbol.split('-')[0];
     if (symbol.includes('/')) base = symbol.split('/')[0];
+    // Specific fix for "BONKUSDT" -> "BONK"
+    if (base.endsWith('USDT')) base = base.replace('USDT', '');
+    if (base.endsWith('USD')) base = base.replace('USD', '');
 
     const id = idMap[base] || base.toLowerCase();
 
     try {
         const url = `https://api.coingecko.com/api/v3/simple/price?ids=${id}&vs_currencies=usd&include_24hr_change=true`;
-        const res = await fetch(url);
+        const res = await fetch(url, { headers: FETCH_HEADERS });
         if (!res.ok) return null;
         const data = await res.json();
         const item = data[id];
@@ -39,6 +50,25 @@ async function fetchCoinGeckoQuote(symbol: string): Promise<QuoteData | null> {
     }
 }
 
+export async function searchCoinGecko(query: string) {
+    try {
+        const url = `https://api.coingecko.com/api/v3/search?query=${encodeURIComponent(query)}`;
+        const res = await fetch(url, { headers: FETCH_HEADERS });
+        if (!res.ok) return [];
+        const data = await res.json();
+        return (data.coins || []).slice(0, 5).map((coin: any) => ({
+            symbol: `${coin.symbol.toUpperCase()}-USD`, // Normalize to typical format
+            shortname: coin.name,
+            quoteType: 'CRYPTOCURRENCY',
+            exchange: 'CoinGecko',
+            source: 'CoinGecko'
+        }));
+    } catch (e) {
+        console.error("CoinGecko search failed", e);
+        return [];
+    }
+}
+
 // --- Binance Vision (Public Data) ---
 // Uses the same API structure as Binance.com but is less restricted
 const BINANCE_API_BASE = 'https://data-api.binance.vision/api/v3';
@@ -52,11 +82,11 @@ async function fetchBinanceCandles(symbol: string): Promise<Candle[]> {
 
     try {
         const url = `${BINANCE_API_BASE}/klines?symbol=${binanceSymbol}&interval=1d&limit=60`;
-        const res = await fetch(url);
+        const res = await fetch(url, { headers: FETCH_HEADERS });
         if (!res.ok) {
             // Fallback: Binance US
             const usUrl = `https://api.binance.us/api/v3/klines?symbol=${binanceSymbol}&interval=1d&limit=60`;
-            const usRes = await fetch(usUrl);
+            const usRes = await fetch(usUrl, { headers: FETCH_HEADERS });
             if (!usRes.ok) return [];
             const data = await usRes.json();
             return mapBinanceCandles(data);
@@ -82,6 +112,7 @@ function mapBinanceCandles(data: any[]): Candle[] {
 
 async function fetchBinanceQuote(symbol: string): Promise<QuoteData | null> {
     let binanceSymbol = symbol.replace('-', '').replace('/', '').toUpperCase();
+    // Handle specific formats like "BONKUSDT" directly if passed without separator
     if (symbol.includes('-')) {
         const [base, quote] = symbol.split('-');
         binanceSymbol = `${base}${quote}`;
@@ -89,7 +120,7 @@ async function fetchBinanceQuote(symbol: string): Promise<QuoteData | null> {
 
     try {
         const url = `${BINANCE_API_BASE}/ticker/24hr?symbol=${binanceSymbol}`;
-        const res = await fetch(url);
+        const res = await fetch(url, { headers: FETCH_HEADERS });
         if (res.ok) {
             const data = await res.json();
             return mapBinanceQuote(data, symbol);
@@ -97,7 +128,7 @@ async function fetchBinanceQuote(symbol: string): Promise<QuoteData | null> {
 
         // Fallback: Binance US
         const usUrl = `https://api.binance.us/api/v3/ticker/24hr?symbol=${binanceSymbol}`;
-        const usRes = await fetch(usUrl);
+        const usRes = await fetch(usUrl, { headers: FETCH_HEADERS });
         if (usRes.ok) {
             const data = await usRes.json();
             return mapBinanceQuote(data, symbol);
@@ -129,7 +160,7 @@ async function fetchFinnhubCandles(symbol: string): Promise<Candle[]> {
 
     try {
         const url = `https://finnhub.io/api/v1/stock/candle?symbol=${symbol}&resolution=D&from=${from}&to=${to}&token=${FINNHUB_API_KEY}`;
-        const res = await fetch(url);
+        const res = await fetch(url, { headers: FETCH_HEADERS });
         if (!res.ok) return [];
         const data = await res.json();
         if (data.s !== 'ok') return [];
@@ -156,7 +187,7 @@ async function fetchFinnhubQuote(symbol: string): Promise<QuoteData | null> {
     if (!FINNHUB_API_KEY) return null;
     try {
         const url = `https://finnhub.io/api/v1/quote?symbol=${symbol}&token=${FINNHUB_API_KEY}`;
-        const res = await fetch(url);
+        const res = await fetch(url, { headers: FETCH_HEADERS });
         if (!res.ok) return null;
         const data = await res.json();
 
@@ -177,7 +208,7 @@ export async function searchFinnhub(query: string) {
     if (!FINNHUB_API_KEY) return [];
     try {
         const url = `https://finnhub.io/api/v1/search?q=${encodeURIComponent(query)}&token=${FINNHUB_API_KEY}`;
-        const res = await fetch(url);
+        const res = await fetch(url, { headers: FETCH_HEADERS });
         if (!res.ok) return [];
         const data = await res.json();
         return data.result || [];
@@ -191,7 +222,9 @@ export async function searchFinnhub(query: string) {
 
 export const fetchMixedCandles = async (symbol: string, type: 'stock' | 'crypto'): Promise<Candle[]> => {
     if (type === 'crypto') {
-        return fetchBinanceCandles(symbol);
+        const candles = await fetchBinanceCandles(symbol);
+        // If Binance blocked/failed, could technically try others but candle data is heavy
+        return candles;
     }
     // Stocks: Try Yahoo first, then Finnhub
     try {
@@ -225,25 +258,46 @@ export const fetchMixedQuote = async (symbol: string, type: 'stock' | 'crypto'):
 };
 
 export const unifiedSearch = async (query: string) => {
-    // Try Yahoo first
+    const results: any[] = [];
+
+    // 1. Try Yahoo (Wait for result, don't just fire and forget, to preserve order if possible)
     try {
-        const results = await searchYahoo(query);
-        if (results.length > 0) {
-            return results.map((item: any) => ({
-                symbol: item.symbol,
-                shortname: item.shortname || item.longname || item.symbol,
-                quoteType: item.quoteType,
-                exchange: item.exchange,
-            }));
+        const yahooResults = await searchYahoo(query);
+        if (yahooResults && yahooResults.length > 0) {
+            yahooResults.forEach((item: any) => {
+                results.push({
+                    symbol: item.symbol,
+                    shortname: item.shortname || item.longname || item.symbol,
+                    quoteType: item.quoteType,
+                    exchange: item.exchange,
+                    source: 'Yahoo'
+                });
+            });
         }
     } catch (e) { }
 
-    // Fallback to Finnhub
-    const fhResults = await searchFinnhub(query);
-    return fhResults.map((item: any) => ({
-        symbol: item.symbol,
-        shortname: item.description,
-        quoteType: item.type,
-        exchange: item.displaySymbol ? item.displaySymbol.split(':')[0] : ''
-    }));
+    // 2. Try CoinGecko (parallel or fallback? Let's add them to the mix)
+    // Especially if query looks like crypto
+    try {
+        const cgResults = await searchCoinGecko(query);
+        results.push(...cgResults);
+    } catch (e) { }
+
+    // 3. Fallback to Finnhub if Yahoo failed or returned nothing
+    if (results.length === 0) {
+        try {
+            const fhResults = await searchFinnhub(query);
+            fhResults.forEach((item: any) => {
+                results.push({
+                    symbol: item.symbol,
+                    shortname: item.description,
+                    quoteType: item.type,
+                    exchange: item.displaySymbol ? item.displaySymbol.split(':')[0] : '',
+                    source: 'Finnhub'
+                });
+            });
+        } catch (e) { }
+    }
+
+    return results;
 };

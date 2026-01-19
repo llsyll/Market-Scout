@@ -21,10 +21,13 @@ export default function Home() {
   const [searchResults, setSearchResults] = useState<any[]>([]);
   const [showResults, setShowResults] = useState(false);
 
+  const [isSearching, setIsSearching] = useState(false);
+
   // Debounce search
   useEffect(() => {
     const timer = setTimeout(async () => {
       if (newSymbol.length >= 2) {
+        setIsSearching(true);
         try {
           const res = await fetch(`/api/search?q=${encodeURIComponent(newSymbol)}`);
           const data = await res.json();
@@ -32,6 +35,8 @@ export default function Home() {
           setShowResults(true);
         } catch (e) {
           console.error(e);
+        } finally {
+          setIsSearching(false);
         }
       } else {
         setSearchResults([]);
@@ -45,7 +50,16 @@ export default function Home() {
   const selectSymbol = (item: any) => {
     setNewSymbol(item.symbol);
     // Auto-detect type
-    if (item.quoteType === 'CRYPTOCURRENCY' || item.exchange === 'CCC') {
+    // Enhanced logic: Check for "USDT" or "-USD" suffix or CoinGecko source
+    const symbol = item.symbol.toUpperCase();
+    if (
+      item.quoteType === 'CRYPTOCURRENCY' ||
+      item.exchange === 'CCC' ||
+      item.exchange === 'CoinGecko' ||
+      symbol.endsWith('USDT') ||
+      symbol.endsWith('-USD') ||
+      symbol.includes('-USD')
+    ) {
       setNewType('crypto');
     } else {
       setNewType('stock');
@@ -237,7 +251,7 @@ export default function Home() {
             onBlur={() => setTimeout(() => setShowResults(false), 200)} // Delay to allow click
           />
 
-          {showResults && searchResults.length > 0 && (
+          {showResults && (
             <div style={{
               position: 'absolute',
               top: '100%',
@@ -253,6 +267,18 @@ export default function Home() {
               marginTop: '4px',
               boxShadow: '0 4px 20px rgba(0,0,0,0.5)'
             }}>
+              {isSearching && (
+                <div style={{ padding: '0.75rem 1rem', color: 'var(--muted)', fontSize: '0.9rem' }}>
+                  🔍 正在搜索...
+                </div>
+              )}
+
+              {!isSearching && searchResults.length === 0 && (
+                <div style={{ padding: '0.75rem 1rem', color: 'var(--muted)', fontSize: '0.9rem' }}>
+                  未找到相关结果，直接回车添加
+                </div>
+              )}
+
               {searchResults.map((item, idx) => (
                 <div
                   key={idx + item.symbol}
@@ -265,8 +291,11 @@ export default function Home() {
                   }}
                   className="search-result-item"
                 >
-                  <div style={{ fontWeight: 600, color: 'white' }}>{item.symbol}</div>
-                  <div style={{ fontSize: '0.8rem', color: 'var(--muted)', display: 'flex', justifyContent: 'space-between' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span style={{ fontWeight: 600, color: 'white' }}>{item.symbol}</span>
+                    {item.source && <span style={{ fontSize: '0.7rem', backgroundColor: 'rgba(255,255,255,0.1)', padding: '1px 4px', borderRadius: '3px' }}>{item.source}</span>}
+                  </div>
+                  <div style={{ fontSize: '0.8rem', color: 'var(--muted)', display: 'flex', justifyContent: 'space-between', marginTop: '2px' }}>
                     <span>{item.shortname}</span>
                     <span>{item.exchange} - {item.quoteType}</span>
                   </div>

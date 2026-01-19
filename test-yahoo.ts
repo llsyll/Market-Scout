@@ -7,6 +7,11 @@ import YahooFinance from 'yahoo-finance2';
 
 const yahooFinance = new YahooFinance();
 
+const FETCH_HEADERS = {
+    'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+    'Accept': 'application/json',
+};
+
 async function test() {
     console.log("--- Testing Search 'NVDA' ---");
     try {
@@ -22,7 +27,7 @@ async function test() {
 
     console.log("\n--- Testing Binance.com 'BTCUSDT' ---");
     try {
-        const binanceRes = await fetch("https://api.binance.com/api/v3/ticker/24hr?symbol=BTCUSDT");
+        const binanceRes = await fetch("https://api.binance.com/api/v3/ticker/24hr?symbol=BTCUSDT", { headers: FETCH_HEADERS });
         if (binanceRes.ok) {
             const data = await binanceRes.json();
             console.log("Binance.com Result:", data.lastPrice);
@@ -33,7 +38,7 @@ async function test() {
 
     console.log("\n--- Testing Binance Vision 'BTCUSDT' ---");
     try {
-        const binanceVision = await fetch("https://data-api.binance.vision/api/v3/ticker/24hr?symbol=BTCUSDT");
+        const binanceVision = await fetch("https://data-api.binance.vision/api/v3/ticker/24hr?symbol=BTCUSDT", { headers: FETCH_HEADERS });
         if (binanceVision.ok) {
             const data = await binanceVision.json();
             console.log("Binance Vision Result:", data.lastPrice);
@@ -44,7 +49,7 @@ async function test() {
 
     console.log("\n--- Testing Binance US 'BTCUSD' ---");
     try {
-        const binanceUS = await fetch("https://api.binance.us/api/v3/ticker/24hr?symbol=BTCUSD");
+        const binanceUS = await fetch("https://api.binance.us/api/v3/ticker/24hr?symbol=BTCUSD", { headers: FETCH_HEADERS });
         if (binanceUS.ok) {
             const data = await binanceUS.json();
             console.log("Binance US Result:", data.lastPrice);
@@ -55,7 +60,7 @@ async function test() {
 
     console.log("\n--- Testing CoinGecko 'bitcoin' ---");
     try {
-        const cg = await fetch("https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=usd");
+        const cg = await fetch("https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=usd", { headers: FETCH_HEADERS });
         if (cg.ok) {
             const data = await cg.json();
             console.log("CoinGecko Result:", data);
@@ -63,6 +68,19 @@ async function test() {
             console.log("CoinGecko Failed:", cg.status);
         }
     } catch (e) { console.log("CoinGecko Error:", e); }
+
+    console.log("\n--- Testing CoinGecko Search 'BONK' ---");
+    try {
+        const url = `https://api.coingecko.com/api/v3/search?query=BONK`;
+        const res = await fetch(url, { headers: FETCH_HEADERS });
+        if (res.ok) {
+            const data = await res.json();
+            console.log("CoinGecko Search Result Count:", data.coins.length);
+            if (data.coins.length > 0) console.log("First match:", data.coins[0].name);
+        } else {
+            console.log("CoinGecko Search Failed:", res.status);
+        }
+    } catch (e) { console.log("CoinGecko Search Error:", e); }
 }
 
 test();
