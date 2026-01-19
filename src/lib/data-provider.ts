@@ -238,63 +238,93 @@ export const fetchMixedCandles = async (symbol: string, type: 'stock' | 'crypto'
 
 export const fetchMixedQuote = async (symbol: string, type: 'stock' | 'crypto'): Promise<QuoteData | null> => {
     if (type === 'crypto') {
-        const bQuote = await fetchBinanceQuote(symbol);
-        if (bQuote) return bQuote;
+        // Priority 1: CoinGecko (Likely to work on Vercel)
+        const cgQuote = await fetchCoinGeckoQuote(symbol);
+        if (cgQuote) return cgQuote;
 
-        // Fallback to CoinGecko
-        console.log(`Binance failed for ${symbol}, trying CoinGecko...`);
-        return await fetchCoinGeckoQuote(symbol);
+        // Priority 2: Binance (Likely blocked, but good backup)
+        console.log(`CoinGecko failed for ${symbol}, trying Binance...`);
+        return await fetchBinanceQuote(symbol);
     }
 
-    // Stocks: Try Yahoo first, then Finnhub
+    // Stocks: Try Finnhub first (Key required), then Yahoo
+    try {
+        const fhQuote = await fetchFinnhubQuote(symbol);
+        if (fhQuote && fhQuote.regularMarketPrice) return fhQuote;
+        // If Finnhub returns empty or fails, throw to try Yahoo
+        if (!fhQuote) throw new Error("Finnhub/Empty");
+    } catch (e) {
+        console.log(`Finnhub failed/missing for ${symbol}, trying Yahoo...`);
+    }
+
+    // Fallback: Yahoo
     try {
         const quotes = await getQuotes([symbol]);
         if (quotes && quotes.length > 0) return quotes[0];
-        throw new Error("Yahoo/Empty");
+        return null;
     } catch (error) {
-        console.log(`Yahoo failed for ${symbol}, trying Finnhub...`);
-        return await fetchFinnhubQuote(symbol);
+        console.error(`All providers failed for ${symbol}`);
+        return null;
     }
 };
 
 export const unifiedSearch = async (query: string) => {
     const results: any[] = [];
+    const isCryptoLike = query.toUpperCase().includes('USD') ||
+        ['BTC', 'ETH', 'SOL', 'DOGE', 'BONK', 'PEPE'].some(c => query.toUpperCase().includes(c));
 
-    // 1. Try Yahoo (Wait for result, don't just fire and forget, to preserve order if possible)
+    // 1. If Crypto-like, try CoinGecko FIRST
+    if (isCryptoLike) {
+        try {
+            const cgResults = await searchCoinGecko(query);
+            results.push(...cgResults);
+        } catch (e) { }
+    }
+
+    // 2. Try Yahoo (Standard for stocks)
     try {
         const yahooResults = await searchYahoo(query);
         if (yahooResults && yahooResults.length > 0) {
             yahooResults.forEach((item: any) => {
-                results.push({
-                    symbol: item.symbol,
-                    shortname: item.shortname || item.longname || item.symbol,
-                    quoteType: item.quoteType,
-                    exchange: item.exchange,
-                    source: 'Yahoo'
-                });
+                // Avoid duplicates if we already found it via CoinGecko
+                if (!results.find(r => r.symbol === item.symbol)) {
+                    results.push({
+                        symbol: item.symbol,
+                        shortname: item.shortname || item.longname || item.symbol,
+                        quoteType: item.quoteType,
+                        exchange: item.exchange,
+                        source: 'Yahoo'
+                    });
+                }
             });
         }
     } catch (e) { }
 
-    // 2. Try CoinGecko (parallel or fallback? Let's add them to the mix)
-    // Especially if query looks like crypto
-    try {
-        const cgResults = await searchCoinGecko(query);
-        results.push(...cgResults);
-    } catch (e) { }
+    // 3. If not crypto-like, try CoinGecko now (in case it was a crypto name we didn't recognize)
+    if (!isCryptoLike && results.length < 3) {
+        try {
+            const cgResults = await searchCoinGecko(query);
+            // Filter duplicates
+            cgResults.forEach(item => {
+                if (!results.find(r => r.symbol === item.symbol)) results.push(item);
+            });
+        } catch (e) { }
+    }
 
-    // 3. Fallback to Finnhub if Yahoo failed or returned nothing
+    // 4. Fallback to Finnhub
     if (results.length === 0) {
         try {
             const fhResults = await searchFinnhub(query);
             fhResults.forEach((item: any) => {
-                results.push({
-                    symbol: item.symbol,
-                    shortname: item.description,
-                    quoteType: item.type,
-                    exchange: item.displaySymbol ? item.displaySymbol.split(':')[0] : '',
-                    source: 'Finnhub'
-                });
+                if (!results.find(r => r.symbol === item.symbol)) {
+                    results.push({
+                        symbol: item.symbol,
+                        shortname: item.description,
+                        quoteType: item.type,
+                        exchange: item.displaySymbol ? item.displaySymbol.split(':')[0] : '',
+                        source: 'Finnhub'
+                    });
+                }
             });
         } catch (e) { }
     }
