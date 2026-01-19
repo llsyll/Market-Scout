@@ -305,7 +305,7 @@ export const unifiedSearch = async (query: string) => {
         try {
             const cgResults = await searchCoinGecko(query);
             // Filter duplicates
-            cgResults.forEach(item => {
+            cgResults.forEach((item: any) => {
                 if (!results.find(r => r.symbol === item.symbol)) results.push(item);
             });
         } catch (e) { }
